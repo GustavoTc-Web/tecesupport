@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+
+# Banco local
+db.sqlite3
+
+# Ambiente virtual
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+
+# Variáveis de ambiente
+.env
