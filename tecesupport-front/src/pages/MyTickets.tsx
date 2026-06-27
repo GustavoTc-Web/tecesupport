@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import TicketCard from "../components/TicketCard";
 import api from "../api/api";
-import type { Ticket } from "../types/ticket";
+import type { Comment, Ticket } from "../types/ticket";
 
 function getStatusLabel(status: string) {
   switch (status) {
@@ -31,10 +30,6 @@ function getPriorityLabel(priority: string) {
   }
 }
 
-function getAuthorName(ticket: Ticket) {
-  return ticket.author_name ?? ticket.author_username ?? String(ticket.author ?? "-");
-}
-
 function getAssignedName(ticket: Ticket) {
   return (
     ticket.assigned_to_name ??
@@ -43,13 +38,19 @@ function getAssignedName(ticket: Ticket) {
   );
 }
 
-export default function Tickets() {
+function formatCommentDate(date: string) {
+  return new Date(date).toLocaleString("pt-BR");
+}
+
+export default function MyTickets() {
   const navigate = useNavigate();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
 
   useEffect(() => {
     api
@@ -73,51 +74,35 @@ export default function Tickets() {
       });
   }, []);
 
-  const filteredTickets = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-
-    return tickets.filter((ticket) => {
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      const content = [
-        ticket.title,
-        ticket.description,
-        getAuthorName(ticket),
-        getAssignedName(ticket),
-        getStatusLabel(ticket.status),
-        getPriorityLabel(ticket.priority),
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return content.includes(normalizedSearch);
-    });
-  }, [search, tickets]);
-
-  const openCount = tickets.filter((ticket) => ticket.status === "open").length;
-  const inProgressCount = tickets.filter(
-    (ticket) => ticket.status === "in_progress"
-  ).length;
-  const resolvedCount = tickets.filter(
-    (ticket) => ticket.status === "resolved"
-  ).length;
-
   useEffect(() => {
-    if (!selectedTicket) {
-      if (filteredTickets.length > 0) {
-        setSelectedTicket(filteredTickets[0]);
+    async function fetchSelectedTicketData() {
+      if (!selectedTicket) {
+        setComments([]);
+        return;
       }
-      return;
+
+      setDetailsLoading(true);
+      setCommentsLoading(true);
+
+      try {
+        const [ticketResponse, commentsResponse] = await Promise.all([
+          api.get(`/tickets/${selectedTicket.id}/`),
+          api.get(`/tickets/${selectedTicket.id}/comments/`),
+        ]);
+
+        setSelectedTicket(ticketResponse.data);
+        setComments(commentsResponse.data);
+      } catch (err) {
+        console.error("Erro ao buscar detalhes do ticket:", err);
+        setComments([]);
+      } finally {
+        setDetailsLoading(false);
+        setCommentsLoading(false);
+      }
     }
 
-    const refreshedSelected = filteredTickets.find(
-      (ticket) => ticket.id === selectedTicket.id
-    );
-
-    setSelectedTicket(refreshedSelected ?? filteredTickets[0] ?? null);
-  }, [filteredTickets, selectedTicket]);
+    fetchSelectedTicketData();
+  }, [selectedTicket?.id]);
 
   return (
     <div className="app-layout">
@@ -132,7 +117,7 @@ export default function Tickets() {
           </div>
 
           <nav className="sidebar-nav">
-            <button className="nav-item active">Tickets</button>
+            <button className="nav-item active">Meus Tickets</button>
             <button className="nav-item">Dashboard</button>
             <button className="nav-item">Usuarios</button>
             <button className="nav-item">Relatorios</button>
@@ -141,92 +126,102 @@ export default function Tickets() {
         </div>
 
         <div className="sidebar-footer">
-          <span className="sidebar-footer-label">Ambiente</span>
-          <strong>Painel operacional</strong>
-          <p>Visual simples para acompanhar a fila da equipe.</p>
+          <span className="sidebar-footer-label">Cliente</span>
+          <strong>Meus chamados</strong>
+          <p>Acompanhe apenas os tickets vinculados a voce.</p>
         </div>
       </aside>
 
       <main className="main-content">
         <header className="topbar topbar-panel">
-          <div className="topbar-copy">
-            <span className="section-kicker">Operacao</span>
-            <h1>Painel de Tickets</h1>
-            <p>Gerencie chamados e acompanhe o andamento da equipe.</p>
-          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              width: "100%",
+            }}
+          >
+            <div className="topbar-copy">
+              <span className="section-kicker">Cliente</span>
+              <h1>Meus Tickets</h1>
+              <p>Veja o andamento dos seus chamados de forma simples.</p>
+            </div>
 
-          <div className="topbar-actions">
-            <input
-              type="text"
-              placeholder="Buscar ticket, autor ou prioridade..."
-              className="search-input"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <button className="new-ticket-btn">+ Novo Ticket</button>
+            <button
+              onClick={() => navigate("/new-ticket")}
+              style={{
+                background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                color: "#fff",
+                padding: "10px 18px",
+                borderRadius: "10px",
+                border: "none",
+                cursor: "pointer",
+                fontWeight: 600,
+                height: "fit-content",
+                boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
+              }}
+            >
+              + Novo Ticket
+            </button>
           </div>
         </header>
-
-        <section className="stats-grid">
-          <div className="stat-card">
-            <span>Total</span>
-            <strong>{tickets.length}</strong>
-            <p>Tickets cadastrados</p>
-          </div>
-          <div className="stat-card">
-            <span>Abertos</span>
-            <strong>{openCount}</strong>
-            <p>Precisam de atencao</p>
-          </div>
-          <div className="stat-card">
-            <span>Em andamento</span>
-            <strong>{inProgressCount}</strong>
-            <p>Em fluxo pela equipe</p>
-          </div>
-          <div className="stat-card">
-            <span>Resolvidos</span>
-            <strong>{resolvedCount}</strong>
-            <p>Ja finalizados</p>
-          </div>
-        </section>
 
         <section className="content-grid">
           <div className="ticket-list-panel surface-panel">
             <div className="panel-header">
               <div>
-                <h3>Fila de atendimento</h3>
+                <h3>Seus chamados</h3>
                 <p className="panel-subtitle">
-                  {search.trim()
-                    ? `${filteredTickets.length} resultado(s) para "${search}"`
-                    : "Selecione um ticket para ver os detalhes."}
+                  Lista simples dos tickets associados ao seu usuario.
                 </p>
               </div>
-              <span>{filteredTickets.length} itens</span>
+              <span>{tickets.length} itens</span>
             </div>
 
             {loading && <p className="panel-message">Carregando tickets...</p>}
             {error && <p className="panel-message error-text">{error}</p>}
 
-            {!loading && !error && filteredTickets.length === 0 && (
+            {!loading && !error && tickets.length === 0 && (
               <div className="empty-state">
                 <strong>Nenhum ticket encontrado</strong>
-                <p>Tente ajustar a busca para localizar outro chamado.</p>
+                <p>Assim que houver chamados, eles aparecerao aqui.</p>
               </div>
             )}
 
-            {!loading && !error && filteredTickets.length > 0 && (
+            {!loading && !error && tickets.length > 0 && (
               <div className="ticket-list">
-                {filteredTickets.map((ticket) => (
-                  <TicketCard
+                {tickets.map((ticket) => (
+                  <button
                     key={ticket.id}
-                    ticket={ticket}
-                    isSelected={selectedTicket?.id === ticket.id}
-                    onSelect={() => setSelectedTicket(ticket)}
-                    statusLabel={getStatusLabel(ticket.status)}
-                    priorityLabel={getPriorityLabel(ticket.priority)}
-                    authorName={getAuthorName(ticket)}
-                    assignedName={getAssignedName(ticket)}
-                  />
+                    type="button"
+                    className={`ticket-card ${
+                      selectedTicket?.id === ticket.id ? "selected" : ""
+                    }`}
+                    onClick={() => setSelectedTicket(ticket)}
+                  >
+                    <div className="ticket-card-top">
+                      <div className="ticket-card-heading">
+                        <span className="ticket-id">#{ticket.id}</span>
+                        <h4>{ticket.title}</h4>
+                      </div>
+                      <span className={`status-badge ${ticket.status}`}>
+                        {getStatusLabel(ticket.status)}
+                      </span>
+                    </div>
+
+                    <p className="ticket-description">{ticket.description}</p>
+
+                    <div className="ticket-card-footer">
+                      <span className={`priority-badge ${ticket.priority}`}>
+                        {getPriorityLabel(ticket.priority)}
+                      </span>
+
+                      <div className="ticket-meta-inline">
+                        <span>{getAssignedName(ticket)}</span>
+                      </div>
+                    </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -248,6 +243,8 @@ export default function Tickets() {
                 <strong>Nada selecionado</strong>
                 <p>Escolha um ticket da lista para abrir os detalhes.</p>
               </div>
+            ) : detailsLoading ? (
+              <p className="panel-message">Carregando detalhes do ticket...</p>
             ) : (
               <div className="details-content">
                 <div className="details-hero">
@@ -275,13 +272,6 @@ export default function Tickets() {
                   <h4>Informacoes</h4>
                   <div className="info-grid">
                     <div className="info-card">
-                      <span className="info-label">Autor</span>
-                      <span className="info-value">
-                        {getAuthorName(selectedTicket)}
-                      </span>
-                    </div>
-
-                    <div className="info-card">
                       <span className="info-label">Responsavel</span>
                       <span className="info-value">
                         {getAssignedName(selectedTicket)}
@@ -289,16 +279,16 @@ export default function Tickets() {
                     </div>
 
                     <div className="info-card">
-                      <span className="info-label">Status</span>
+                      <span className="info-label">Prioridade</span>
                       <span className="info-value">
-                        {getStatusLabel(selectedTicket.status)}
+                        {getPriorityLabel(selectedTicket.priority)}
                       </span>
                     </div>
 
                     <div className="info-card">
-                      <span className="info-label">Prioridade</span>
+                      <span className="info-label">Status</span>
                       <span className="info-value">
-                        {getPriorityLabel(selectedTicket.priority)}
+                        {getStatusLabel(selectedTicket.status)}
                       </span>
                     </div>
 
@@ -318,13 +308,24 @@ export default function Tickets() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  className="new-ticket-btn"
-                  onClick={() => navigate(`/tickets/${selectedTicket.id}`)}
-                >
-                  Abrir pagina completa
-                </button>
+                <div className="details-section">
+                  <h4>Comentarios</h4>
+                  {commentsLoading ? (
+                    <p className="panel-message">Carregando comentarios...</p>
+                  ) : comments.length === 0 ? (
+                    <p>Nenhum comentario registrado ainda.</p>
+                  ) : (
+                    comments.map((comment) => (
+                      <div key={comment.id} className="comment-box">
+                        <strong>{comment.author_username}</strong>
+                        <span className="info-label" style={{ marginBottom: "8px" }}>
+                          {formatCommentDate(comment.created_at)}
+                        </span>
+                        <p>{comment.message}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </div>
