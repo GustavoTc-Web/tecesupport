@@ -3,6 +3,7 @@ import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../api/api";
+import AppLayout from "../components/AppLayout";
 
 type FeedbackState = {
   type: "error" | "success";
@@ -45,11 +46,11 @@ function getErrorMessage(error: unknown) {
     }
 
     if (error.response?.status === 401) {
-      return "Sua sessao expirou. Entre novamente para criar um ticket.";
+      return "Sua sessão expirou. Entre novamente para criar um ticket.";
     }
   }
 
-  return "Nao foi possivel criar o ticket agora. Revise os dados e tente novamente.";
+  return "Não foi possível criar o ticket agora. Revise os dados e tente novamente.";
 }
 
 export default function NewTicket() {
@@ -83,7 +84,7 @@ export default function NewTicket() {
     if (!token) {
       setFeedback({
         type: "error",
-        message: "Voce precisa entrar novamente para criar um ticket.",
+        message: "Você precisa entrar novamente para criar um ticket.",
       });
       setIsSubmitting(false);
       return;
@@ -131,37 +132,11 @@ export default function NewTicket() {
   }
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar">
-        <div>
-          <div className="sidebar-header">
-            <div className="logo-box">TS</div>
-            <div>
-              <h2>TeceSupport</h2>
-              <p>Service Desk</p>
-            </div>
-          </div>
-
-          <nav className="sidebar-nav">
-            <button className="nav-item active">Novo Ticket</button>
-            <button className="nav-item">Meus Tickets</button>
-            <button className="nav-item">Dashboard</button>
-            <button className="nav-item">Configuracoes</button>
-          </nav>
-        </div>
-
-        <div className="sidebar-footer">
-          <span className="sidebar-footer-label">Cliente</span>
-          <strong>Abrir chamado</strong>
-          <p>Descreva o problema com clareza para agilizar o atendimento.</p>
-        </div>
-      </aside>
-
-      <main className="main-content">
+    <AppLayout>
         <header className="topbar topbar-panel">
           <div className="topbar-copy">
             <span className="section-kicker">Novo chamado</span>
-            <h1>Criar Ticket</h1>
+            <h1>Criar ticket</h1>
             <p>Preencha os dados abaixo para registrar sua solicitação.</p>
           </div>
         </header>
@@ -182,7 +157,7 @@ export default function NewTicket() {
               <input
                 type="text"
                 name="title"
-                placeholder="Ex: Nao consigo acessar minha conta"
+                placeholder="Ex.: Não consigo acessar minha conta"
                 value={form.title}
                 onChange={handleChange}
               />
@@ -192,7 +167,7 @@ export default function NewTicket() {
               <span>Descrição</span>
               <textarea
                 name="description"
-                placeholder="Explique o problema com o maximo de detalhes possivel"
+                placeholder="Explique o problema com o máximo de detalhes possível"
                 value={form.description}
                 onChange={handleChange}
                 rows={6}
@@ -223,7 +198,7 @@ export default function NewTicket() {
             </label>
 
             <label className="login-field">
-              <span>Telefone secundario</span>
+              <span>Telefone secundário</span>
               <input
                 type="text"
                 name="contact_phone2"
@@ -256,11 +231,10 @@ export default function NewTicket() {
             )}
 
             <button type="submit" className="login-submit" disabled={isSubmitting}>
-              {isSubmitting ? "Criando..." : "Criar Ticket"}
+              {isSubmitting ? "Criando..." : "Criar ticket"}
             </button>
           </form>
         </section>
-      </main>
-    </div>
+    </AppLayout>
   );
 }

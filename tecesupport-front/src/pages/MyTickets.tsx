@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../api/api";
+import AppLayout from "../components/AppLayout";
+import Pagination from "../components/Pagination";
+import usePagination from "../hooks/usePagination";
+import usePreferences from "../preferences/usePreferences";
 import type { Comment, Ticket } from "../types/ticket";
 
 function getStatusLabel(status: string) {
@@ -22,7 +26,7 @@ function getPriorityLabel(priority: string) {
     case "low":
       return "Baixa";
     case "medium":
-      return "Media";
+      return "Média";
     case "high":
       return "Alta";
     default:
@@ -44,6 +48,7 @@ function formatCommentDate(date: string) {
 
 export default function MyTickets() {
   const navigate = useNavigate();
+  const { preferences } = usePreferences();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -51,6 +56,12 @@ export default function MyTickets() {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [error, setError] = useState("");
+  const pagination = usePagination(tickets, preferences.tickets_per_page);
+  const selectedTicketId = pagination.pageItems.some(
+    (ticket) => ticket.id === selectedTicket?.id,
+  )
+    ? selectedTicket?.id
+    : pagination.pageItems[0]?.id;
 
   useEffect(() => {
     api
@@ -69,14 +80,14 @@ export default function MyTickets() {
       })
       .catch((err) => {
         console.error("Erro ao buscar tickets:", err);
-        setError("Nao foi possivel carregar os tickets.");
+        setError("Não foi possível carregar os tickets.");
         setLoading(false);
       });
   }, []);
 
   useEffect(() => {
     async function fetchSelectedTicketData() {
-      if (!selectedTicket) {
+      if (!selectedTicketId) {
         setComments([]);
         return;
       }
@@ -86,8 +97,8 @@ export default function MyTickets() {
 
       try {
         const [ticketResponse, commentsResponse] = await Promise.all([
-          api.get(`/tickets/${selectedTicket.id}/`),
-          api.get(`/tickets/${selectedTicket.id}/comments/`),
+          api.get(`/tickets/${selectedTicketId}/`),
+          api.get(`/tickets/${selectedTicketId}/comments/`),
         ]);
 
         setSelectedTicket(ticketResponse.data);
@@ -102,37 +113,10 @@ export default function MyTickets() {
     }
 
     fetchSelectedTicketData();
-  }, [selectedTicket?.id]);
+  }, [selectedTicketId]);
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar">
-        <div>
-          <div className="sidebar-header">
-            <div className="logo-box">TS</div>
-            <div>
-              <h2>TeceSupport</h2>
-              <p>Service Desk</p>
-            </div>
-          </div>
-
-          <nav className="sidebar-nav">
-            <button className="nav-item active">Meus Tickets</button>
-            <button className="nav-item">Dashboard</button>
-            <button className="nav-item">Usuarios</button>
-            <button className="nav-item">Relatorios</button>
-            <button className="nav-item">Configuracoes</button>
-          </nav>
-        </div>
-
-        <div className="sidebar-footer">
-          <span className="sidebar-footer-label">Cliente</span>
-          <strong>Meus chamados</strong>
-          <p>Acompanhe apenas os tickets vinculados a voce.</p>
-        </div>
-      </aside>
-
-      <main className="main-content">
+    <AppLayout>
         <header className="topbar topbar-panel">
           <div
             style={{
@@ -144,7 +128,7 @@ export default function MyTickets() {
           >
             <div className="topbar-copy">
               <span className="section-kicker">Cliente</span>
-              <h1>Meus Tickets</h1>
+              <h1>Meus tickets</h1>
               <p>Veja o andamento dos seus chamados de forma simples.</p>
             </div>
 
@@ -173,10 +157,13 @@ export default function MyTickets() {
               <div>
                 <h3>Seus chamados</h3>
                 <p className="panel-subtitle">
-                  Lista simples dos tickets associados ao seu usuario.
+                  Lista dos tickets associados ao seu usuário.
                 </p>
               </div>
-              <span>{tickets.length} itens</span>
+              <span>
+                {pagination.rangeStart}–{pagination.rangeEnd} de{" "}
+                {pagination.totalItems}
+              </span>
             </div>
 
             {loading && <p className="panel-message">Carregando tickets...</p>}
@@ -185,13 +172,13 @@ export default function MyTickets() {
             {!loading && !error && tickets.length === 0 && (
               <div className="empty-state">
                 <strong>Nenhum ticket encontrado</strong>
-                <p>Assim que houver chamados, eles aparecerao aqui.</p>
+                <p>Assim que houver chamados, eles aparecerão aqui.</p>
               </div>
             )}
 
             {!loading && !error && tickets.length > 0 && (
               <div className="ticket-list">
-                {tickets.map((ticket) => (
+                {pagination.pageItems.map((ticket) => (
                   <button
                     key={ticket.id}
                     type="button"
@@ -225,14 +212,24 @@ export default function MyTickets() {
                 ))}
               </div>
             )}
+
+            <Pagination
+              currentPage={pagination.currentPage}
+              onPageChange={pagination.goToPage}
+              pageSize={preferences.tickets_per_page}
+              rangeEnd={pagination.rangeEnd}
+              rangeStart={pagination.rangeStart}
+              totalItems={pagination.totalItems}
+              totalPages={pagination.totalPages}
+            />
           </div>
 
           <div className="ticket-details-panel surface-panel">
             <div className="panel-header">
               <div>
-                <h3>Detalhes do Ticket</h3>
+                <h3>Detalhes do ticket</h3>
                 <p className="panel-subtitle">
-                  Informacoes principais do chamado selecionado.
+                  Informações principais do chamado selecionado.
                 </p>
               </div>
               <span>{selectedTicket ? `#${selectedTicket.id}` : "--"}</span>
@@ -264,15 +261,15 @@ export default function MyTickets() {
                 </div>
 
                 <div className="details-section">
-                  <h4>Descricao</h4>
+                  <h4>Descrição</h4>
                   <p>{selectedTicket.description}</p>
                 </div>
 
                 <div className="details-section">
-                  <h4>Informacoes</h4>
+                  <h4>Informações</h4>
                   <div className="info-grid">
                     <div className="info-card">
-                      <span className="info-label">Responsavel</span>
+                      <span className="info-label">Responsável</span>
                       <span className="info-value">
                         {getAssignedName(selectedTicket)}
                       </span>
@@ -300,7 +297,7 @@ export default function MyTickets() {
                     </div>
 
                     <div className="info-card">
-                      <span className="info-label">Telefone secundario</span>
+                      <span className="info-label">Telefone secundário</span>
                       <span className="info-value">
                         {selectedTicket.contact_phone2 || "-"}
                       </span>
@@ -309,11 +306,11 @@ export default function MyTickets() {
                 </div>
 
                 <div className="details-section">
-                  <h4>Comentarios</h4>
+                  <h4>Comentários</h4>
                   {commentsLoading ? (
-                    <p className="panel-message">Carregando comentarios...</p>
+                    <p className="panel-message">Carregando comentários...</p>
                   ) : comments.length === 0 ? (
-                    <p>Nenhum comentario registrado ainda.</p>
+                    <p>Nenhum comentário registrado ainda.</p>
                   ) : (
                     comments.map((comment) => (
                       <div key={comment.id} className="comment-box">
@@ -330,7 +327,6 @@ export default function MyTickets() {
             )}
           </div>
         </section>
-      </main>
-    </div>
+    </AppLayout>
   );
 }

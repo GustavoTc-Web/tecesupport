@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import TicketCard from "../components/TicketCard";
 import api from "../api/api";
+import AppLayout from "../components/AppLayout";
+import Pagination from "../components/Pagination";
+import TicketCard from "../components/TicketCard";
+import usePagination from "../hooks/usePagination";
+import usePreferences from "../preferences/usePreferences";
 import type { Ticket } from "../types/ticket";
 
 function getStatusLabel(status: string) {
@@ -23,7 +27,7 @@ function getPriorityLabel(priority: string) {
     case "low":
       return "Baixa";
     case "medium":
-      return "Media";
+      return "Média";
     case "high":
       return "Alta";
     default:
@@ -45,8 +49,9 @@ function getAssignedName(ticket: Ticket) {
 
 export default function Tickets() {
   const navigate = useNavigate();
+  const { preferences } = usePreferences();
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -61,14 +66,14 @@ export default function Tickets() {
         setTickets(ticketList);
 
         if (ticketList.length > 0) {
-          setSelectedTicket(ticketList[0]);
+          setSelectedTicketId(ticketList[0].id);
         }
 
         setLoading(false);
       })
       .catch((err) => {
         console.error("Erro ao buscar tickets:", err);
-        setError("Nao foi possivel carregar os tickets.");
+        setError("Não foi possível carregar os tickets.");
         setLoading(false);
       });
   }, []);
@@ -95,6 +100,10 @@ export default function Tickets() {
       return content.includes(normalizedSearch);
     });
   }, [search, tickets]);
+  const pagination = usePagination(
+    filteredTickets,
+    preferences.tickets_per_page,
+  );
 
   const openCount = tickets.filter((ticket) => ticket.status === "open").length;
   const inProgressCount = tickets.filter(
@@ -103,55 +112,17 @@ export default function Tickets() {
   const resolvedCount = tickets.filter(
     (ticket) => ticket.status === "resolved"
   ).length;
-
-  useEffect(() => {
-    if (!selectedTicket) {
-      if (filteredTickets.length > 0) {
-        setSelectedTicket(filteredTickets[0]);
-      }
-      return;
-    }
-
-    const refreshedSelected = filteredTickets.find(
-      (ticket) => ticket.id === selectedTicket.id
-    );
-
-    setSelectedTicket(refreshedSelected ?? filteredTickets[0] ?? null);
-  }, [filteredTickets, selectedTicket]);
+  const selectedTicket =
+    pagination.pageItems.find((ticket) => ticket.id === selectedTicketId) ??
+    pagination.pageItems[0] ??
+    null;
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar">
-        <div>
-          <div className="sidebar-header">
-            <div className="logo-box">TS</div>
-            <div>
-              <h2>TeceSupport</h2>
-              <p>Service Desk</p>
-            </div>
-          </div>
-
-          <nav className="sidebar-nav">
-            <button className="nav-item active">Tickets</button>
-            <button className="nav-item">Dashboard</button>
-            <button className="nav-item">Usuarios</button>
-            <button className="nav-item">Relatorios</button>
-            <button className="nav-item">Configuracoes</button>
-          </nav>
-        </div>
-
-        <div className="sidebar-footer">
-          <span className="sidebar-footer-label">Ambiente</span>
-          <strong>Painel operacional</strong>
-          <p>Visual simples para acompanhar a fila da equipe.</p>
-        </div>
-      </aside>
-
-      <main className="main-content">
+    <AppLayout>
         <header className="topbar topbar-panel">
           <div className="topbar-copy">
-            <span className="section-kicker">Operacao</span>
-            <h1>Painel de Tickets</h1>
+            <span className="section-kicker">Operação</span>
+            <h1>Painel de tickets</h1>
             <p>Gerencie chamados e acompanhe o andamento da equipe.</p>
           </div>
 
@@ -176,7 +147,7 @@ export default function Tickets() {
           <div className="stat-card">
             <span>Abertos</span>
             <strong>{openCount}</strong>
-            <p>Precisam de atencao</p>
+            <p>Precisam de atenção</p>
           </div>
           <div className="stat-card">
             <span>Em andamento</span>
@@ -186,7 +157,7 @@ export default function Tickets() {
           <div className="stat-card">
             <span>Resolvidos</span>
             <strong>{resolvedCount}</strong>
-            <p>Ja finalizados</p>
+            <p>Já finalizados</p>
           </div>
         </section>
 
@@ -197,11 +168,18 @@ export default function Tickets() {
                 <h3>Fila de atendimento</h3>
                 <p className="panel-subtitle">
                   {search.trim()
-                    ? `${filteredTickets.length} resultado(s) para "${search}"`
+                    ? `${filteredTickets.length} ${
+                        filteredTickets.length === 1
+                          ? "resultado"
+                          : "resultados"
+                      } para "${search}"`
                     : "Selecione um ticket para ver os detalhes."}
                 </p>
               </div>
-              <span>{filteredTickets.length} itens</span>
+              <span>
+                {pagination.rangeStart}–{pagination.rangeEnd} de{" "}
+                {pagination.totalItems}
+              </span>
             </div>
 
             {loading && <p className="panel-message">Carregando tickets...</p>}
@@ -216,12 +194,12 @@ export default function Tickets() {
 
             {!loading && !error && filteredTickets.length > 0 && (
               <div className="ticket-list">
-                {filteredTickets.map((ticket) => (
+                {pagination.pageItems.map((ticket) => (
                   <TicketCard
                     key={ticket.id}
                     ticket={ticket}
                     isSelected={selectedTicket?.id === ticket.id}
-                    onSelect={() => setSelectedTicket(ticket)}
+                    onSelect={() => setSelectedTicketId(ticket.id)}
                     statusLabel={getStatusLabel(ticket.status)}
                     priorityLabel={getPriorityLabel(ticket.priority)}
                     authorName={getAuthorName(ticket)}
@@ -230,14 +208,24 @@ export default function Tickets() {
                 ))}
               </div>
             )}
+
+            <Pagination
+              currentPage={pagination.currentPage}
+              onPageChange={pagination.goToPage}
+              pageSize={preferences.tickets_per_page}
+              rangeEnd={pagination.rangeEnd}
+              rangeStart={pagination.rangeStart}
+              totalItems={pagination.totalItems}
+              totalPages={pagination.totalPages}
+            />
           </div>
 
           <div className="ticket-details-panel surface-panel">
             <div className="panel-header">
               <div>
-                <h3>Detalhes do Ticket</h3>
+                <h3>Detalhes do ticket</h3>
                 <p className="panel-subtitle">
-                  Informacoes principais do chamado selecionado.
+                  Informações principais do chamado selecionado.
                 </p>
               </div>
               <span>{selectedTicket ? `#${selectedTicket.id}` : "--"}</span>
@@ -267,12 +255,12 @@ export default function Tickets() {
                 </div>
 
                 <div className="details-section">
-                  <h4>Descricao</h4>
+                  <h4>Descrição</h4>
                   <p>{selectedTicket.description}</p>
                 </div>
 
                 <div className="details-section">
-                  <h4>Informacoes</h4>
+                  <h4>Informações</h4>
                   <div className="info-grid">
                     <div className="info-card">
                       <span className="info-label">Autor</span>
@@ -282,7 +270,7 @@ export default function Tickets() {
                     </div>
 
                     <div className="info-card">
-                      <span className="info-label">Responsavel</span>
+                      <span className="info-label">Responsável</span>
                       <span className="info-value">
                         {getAssignedName(selectedTicket)}
                       </span>
@@ -310,7 +298,7 @@ export default function Tickets() {
                     </div>
 
                     <div className="info-card">
-                      <span className="info-label">Telefone secundario</span>
+                      <span className="info-label">Telefone secundário</span>
                       <span className="info-value">
                         {selectedTicket.contact_phone2 || "-"}
                       </span>
@@ -323,13 +311,12 @@ export default function Tickets() {
                   className="new-ticket-btn"
                   onClick={() => navigate(`/tickets/${selectedTicket.id}`)}
                 >
-                  Abrir pagina completa
+                  Abrir página completa
                 </button>
               </div>
             )}
           </div>
         </section>
-      </main>
-    </div>
+    </AppLayout>
   );
 }

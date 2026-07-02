@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import api from "../api/api";
+import AppLayout from "../components/AppLayout";
 import type { Comment, Ticket, TicketHistory } from "../types/ticket";
 
 function getStatusLabel(status: string) {
@@ -22,7 +23,7 @@ function getPriorityLabel(priority: string) {
     case "low":
       return "Baixa";
     case "medium":
-      return "Media";
+      return "Média";
     case "high":
       return "Alta";
     default:
@@ -65,7 +66,7 @@ export default function TicketDetail() {
   useEffect(() => {
     async function fetchDetail() {
       if (!id) {
-        setError("Ticket nao encontrado.");
+        setError("Ticket não encontrado.");
         setLoading(false);
         return;
       }
@@ -80,7 +81,7 @@ export default function TicketDetail() {
         setComments(commentsResponse.data);
       } catch (err) {
         console.error("Erro ao carregar detalhes do ticket:", err);
-        setError("Nao foi possivel carregar os detalhes do ticket.");
+        setError("Não foi possível carregar os detalhes do ticket.");
       } finally {
         setLoading(false);
       }
@@ -103,7 +104,7 @@ export default function TicketDetail() {
       setActionFeedback("Chamado assumido com sucesso.");
     } catch (err) {
       console.error("Erro ao assumir chamado:", err);
-      setActionFeedback("Nao foi possivel assumir este chamado.");
+      setActionFeedback("Não foi possível assumir este chamado.");
     } finally {
       setIsAssigning(false);
     }
@@ -125,7 +126,7 @@ export default function TicketDetail() {
       setActionFeedback("Prioridade atualizada com sucesso.");
     } catch (err) {
       console.error("Erro ao alterar prioridade:", err);
-      setActionFeedback("Nao foi possivel alterar a prioridade.");
+      setActionFeedback("Não foi possível alterar a prioridade.");
     } finally {
       setIsUpdatingPriority(false);
     }
@@ -162,8 +163,8 @@ export default function TicketDetail() {
       console.error("Erro ao atualizar status do chamado:", err);
       setActionFeedback(
         nextStatus === "resolved"
-          ? "Nao foi possivel resolver o chamado."
-          : "Nao foi possivel reabrir o chamado."
+          ? "Não foi possível resolver o chamado."
+          : "Não foi possível reabrir o chamado."
       );
     } finally {
       setIsUpdatingStatus(false);
@@ -176,7 +177,7 @@ export default function TicketDetail() {
     }
 
     if (!commentMessage.trim()) {
-      setCommentFeedback("Digite um comentario antes de enviar.");
+      setCommentFeedback("Digite um comentário antes de enviar.");
       return;
     }
 
@@ -191,49 +192,25 @@ export default function TicketDetail() {
       const commentsResponse = await api.get(`/tickets/${id}/comments/`);
       setComments(commentsResponse.data);
       setCommentMessage("");
-      setCommentFeedback("Comentario enviado com sucesso.");
+      setCommentFeedback("Comentário enviado com sucesso.");
     } catch (err) {
-      console.error("Erro ao enviar comentario:", err);
-      setCommentFeedback("Nao foi possivel enviar o comentario.");
+      console.error("Erro ao enviar comentário:", err);
+      setCommentFeedback("Não foi possível enviar o comentário.");
     } finally {
       setIsSubmittingComment(false);
     }
   }
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar">
-        <div>
-          <div className="sidebar-header">
-            <div className="logo-box">TS</div>
-            <div>
-              <h2>TeceSupport</h2>
-              <p>Service Desk</p>
-            </div>
-          </div>
-
-          <nav className="sidebar-nav">
-            <button className="nav-item active">Detalhe do Ticket</button>
-            <button className="nav-item">Dashboard</button>
-            <button className="nav-item">Usuarios</button>
-            <button className="nav-item">Relatorios</button>
-            <button className="nav-item">Configuracoes</button>
-          </nav>
-        </div>
-
-        <div className="sidebar-footer">
-          <span className="sidebar-footer-label">Ambiente</span>
-          <strong>Visao detalhada</strong>
-          <p>Acompanhe as informacoes completas e os comentarios do chamado.</p>
-        </div>
-      </aside>
-
-      <main className="main-content">
+    <AppLayout>
         <header className="topbar topbar-panel">
           <div className="topbar-copy">
             <span className="section-kicker">Ticket</span>
-            <h1>Detalhes do Ticket</h1>
-            <p>Veja descricao, prioridade, responsavel e historico de comentarios.</p>
+            <h1>Detalhes do ticket</h1>
+            <p>
+              Veja descrição, prioridade, responsável e histórico de
+              comentários.
+            </p>
           </div>
 
           <div className="topbar-actions">
@@ -253,7 +230,7 @@ export default function TicketDetail() {
 
           {!loading && !error && !ticket && (
             <div className="empty-state">
-              <strong>Ticket nao encontrado</strong>
+              <strong>Ticket não encontrado</strong>
               <p>Verifique o chamado e tente novamente.</p>
             </div>
           )}
@@ -276,15 +253,15 @@ export default function TicketDetail() {
               </div>
 
               <div className="details-section">
-                <h4>Descricao</h4>
+                <h4>Descrição</h4>
                 <p>{ticket.description}</p>
               </div>
 
               <div className="details-section">
-                <h4>Informacoes</h4>
+                <h4>Informações</h4>
                 <div className="info-grid">
                   <div className="info-card">
-                    <span className="info-label">Responsavel</span>
+                    <span className="info-label">Responsável</span>
                     <span className="info-value">{getAssignedName(ticket)}</span>
                   </div>
                   <div className="info-card">
@@ -296,14 +273,14 @@ export default function TicketDetail() {
                     <span className="info-value">{ticket.contact_phone1 || "-"}</span>
                   </div>
                   <div className="info-card">
-                    <span className="info-label">Telefone secundario</span>
+                    <span className="info-label">Telefone secundário</span>
                     <span className="info-value">{ticket.contact_phone2 || "-"}</span>
                   </div>
                 </div>
               </div>
 
               <div className="details-section">
-                <h4>Acoes do chamado</h4>
+                <h4>Ações do chamado</h4>
 
                 <div
                   className="info-card"
@@ -351,7 +328,7 @@ export default function TicketDetail() {
                     </button>
                   ) : (
                     <p className="panel-message" style={{ margin: 0 }}>
-                      Responsavel: {getAssignedName(ticket)}
+                      Responsável: {getAssignedName(ticket)}
                     </p>
                   )}
 
@@ -373,7 +350,7 @@ export default function TicketDetail() {
                       }}
                     >
                       <option value="low">Baixa</option>
-                      <option value="medium">Media</option>
+                      <option value="medium">Média</option>
                       <option value="high">Alta</option>
                     </select>
                   </div>
@@ -411,13 +388,13 @@ export default function TicketDetail() {
               </div>
 
               <div className="details-section">
-                <h4>Comentarios</h4>
+                <h4>Comentários</h4>
                 <div className="login-field" style={{ marginBottom: "16px" }}>
-                  <span>Novo comentario</span>
+                  <span>Novo comentário</span>
                   <textarea
                     value={commentMessage}
                     onChange={(e) => setCommentMessage(e.target.value)}
-                    placeholder="Escreva seu comentario"
+                    placeholder="Escreva seu comentário"
                     rows={4}
                     style={{
                       width: "100%",
@@ -465,11 +442,11 @@ export default function TicketDetail() {
                   disabled={isSubmittingComment}
                   style={{ marginBottom: "18px" }}
                 >
-                  {isSubmittingComment ? "Enviando..." : "Enviar comentario"}
+                  {isSubmittingComment ? "Enviando..." : "Enviar comentário"}
                 </button>
 
                 {comments.length === 0 ? (
-                  <p>Nenhum comentario registrado ainda.</p>
+                  <p>Nenhum comentário registrado ainda.</p>
                 ) : (
                   comments.map((comment) => (
                     <div key={comment.id} className="comment-box">
@@ -495,7 +472,7 @@ export default function TicketDetail() {
                   }}
                 >
                   <h4 style={{ marginBottom: 0 }}>
-                    Historico do chamado ({ticket.histories?.length ?? 0})
+                    Histórico do chamado ({ticket.histories?.length ?? 0})
                   </h4>
                   <button
                     type="button"
@@ -506,13 +483,15 @@ export default function TicketDetail() {
                       minWidth: "fit-content",
                     }}
                   >
-                    {isHistoryOpen ? "Ocultar historico do chamado" : "Ver historico do chamado"}
+                    {isHistoryOpen
+                      ? "Ocultar histórico do chamado"
+                      : "Ver histórico do chamado"}
                   </button>
                 </div>
 
                 {isHistoryOpen &&
                   (!ticket.histories || ticket.histories.length === 0 ? (
-                    <p>Nenhum historico registrado ainda.</p>
+                    <p>Nenhum histórico registrado ainda.</p>
                   ) : (
                     ticket.histories.map((history) => (
                       <div
@@ -554,7 +533,6 @@ export default function TicketDetail() {
             </div>
           )}
         </section>
-      </main>
-    </div>
+    </AppLayout>
   );
 }

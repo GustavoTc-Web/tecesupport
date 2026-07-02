@@ -46,7 +46,7 @@ class TicketViewSet(viewsets.ModelViewSet):
         ticket.save()
 
         TicketHistory.objects.create(
-            ticket=tickey,
+            ticket=ticket,
             user=request.user,
             action="assign",
             description=f"{request.user.username} assumiu o chamado"

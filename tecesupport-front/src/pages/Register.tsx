@@ -2,6 +2,7 @@ import axios from "axios";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api";
+import BrandLogo from "../components/BrandLogo";
 
 type FeedbackState = {
   type: "error" | "success";
@@ -87,7 +88,7 @@ export default function Register() {
   return (
     <main className="login-page">
       <section className="login-hero">
-        <div className="login-brand-badge">TC-S</div>
+        <BrandLogo />
         <span className="login-kicker">TeceSupport</span>
         <h1>Crie sua conta e acompanhe seus chamados.</h1>
         <p>

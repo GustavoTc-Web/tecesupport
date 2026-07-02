@@ -50,6 +50,22 @@
   }
 }
 
+:root[data-theme="dark"] {
+  --text: #9ca3af;
+  --text-h: #f3f4f6;
+  --bg: #0b1120;
+  --border: #2e303a;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --text: #526176;
+  --text-h: #172033;
+  --bg: #eef3f8;
+  --border: #d7e0ea;
+  color-scheme: light;
+}
+
 #root {
   width: 100%;
   max-width: none;

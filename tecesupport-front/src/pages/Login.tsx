@@ -1,7 +1,10 @@
 import axios from "axios";
 import { useState, type FormEvent } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../api/api";
+import { setStoredUser } from "../auth/session";
+import BrandLogo from "../components/BrandLogo";
+import UiIcon from "../components/UiIcon";
 
 type FeedbackState = {
   type: "error" | "success";
@@ -11,6 +14,14 @@ type FeedbackState = {
 function getLoginErrorMessage(error: unknown) {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data;
+
+    if (!error.response) {
+      return "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.";
+    }
+
+    if (error.response.status === 400 || error.response.status === 401) {
+      return "Usuário ou senha inválidos. Revise os dados e tente novamente.";
+    }
 
     if (typeof data?.detail === "string") {
       return data.detail;
@@ -28,23 +39,30 @@ function getLoginErrorMessage(error: unknown) {
       return data.username[0];
     }
 
-    if (error.response?.status === 401) {
-      return "Usuario ou senha invalidos. Tente novamente.";
-    }
   }
 
-  return "Nao foi possivel entrar agora. Verifique seus dados e tente novamente.";
+  return "Não foi possível entrar agora. Tente novamente em alguns instantes.";
 }
 
 export default function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const locationState = location.state as { successMessage?: string } | null;
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(() =>
+    locationState?.successMessage
+      ? { type: "success", message: locationState.successMessage }
+      : null,
+  );
 
-  const stateFeedback = location.state as { successMessage?: string } | null;
+  function clearFeedback() {
+    if (feedback) {
+      setFeedback(null);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -61,7 +79,7 @@ export default function Login() {
 
       localStorage.setItem("access_token", access);
       localStorage.setItem("refresh_token", refresh);
-      localStorage.setItem("user", JSON.stringify(user));
+      setStoredUser(user);
 
       if (user?.role === "analyst") {
         navigate("/tickets");
@@ -82,22 +100,26 @@ export default function Login() {
   return (
     <main className="login-page">
       <section className="login-hero">
-        <div className="login-brand-badge">TC-S</div>
+        <BrandLogo />
         <span className="login-kicker">TeceSupport</span>
-        <h1>Seu painel de suporte com cara de produto de verdade.</h1>
+        <h1>Suporte simples, rápido e transparente.</h1>
         <p>
-          Organize chamados, acompanhe prioridades e mantenha a equipe alinhada
-          com um acesso mais limpo, moderno e profissional.
+          Abra chamados, acompanhe cada etapa do atendimento e mantenha todas
+          as informações em um só lugar.
         </p>
 
         <div className="login-highlights">
           <div className="login-highlight-card">
-            <strong>Visão rápida</strong>
-            <span>Identifique o que esta aberto, em andamento e urgente.</span>
+            <strong>Acompanhe tudo</strong>
+            <span>
+              Consulte o status, a prioridade e o responsável por cada chamado.
+            </span>
           </div>
           <div className="login-highlight-card">
-            <strong>Rotina mais fluida</strong>
-            <span>Entre e retome o atendimento sem distrações desnecessárias.</span>
+            <strong>Atendimento sem complicação</strong>
+            <span>
+              Envie solicitações e acompanhe as respostas da equipe de suporte.
+            </span>
           </div>
         </div>
       </section>
@@ -107,65 +129,103 @@ export default function Login() {
           <div className="login-card-header">
             <span className="login-chip">Acesso ao sistema</span>
             <h2>Entrar</h2>
-            <p>Use suas credenciais para acessar os tickets da equipe.</p>
+            <p>Acesse sua conta para abrir e acompanhar seus chamados.</p>
           </div>
 
-          <form className="login-form" onSubmit={handleSubmit}>
-            <label className="login-field">
-              <span>Usuario</span>
-              <input
-                type="text"
-                placeholder="Digite seu usuario"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-              />
-            </label>
+          <form
+            className="login-form"
+            onSubmit={handleSubmit}
+            aria-busy={isSubmitting}
+          >
+            <div className="login-field">
+              <label htmlFor="login-username">Usuário</label>
+              <div className="login-input-shell">
+                <UiIcon name="user" className="login-input-icon" />
+                <input
+                  id="login-username"
+                  type="text"
+                  placeholder="Digite seu usuário"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    clearFeedback();
+                  }}
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  aria-invalid={feedback?.type === "error"}
+                  aria-describedby={
+                    feedback?.type === "error" ? "login-feedback" : undefined
+                  }
+                  disabled={isSubmitting}
+                  required
+                />
+              </div>
+            </div>
 
-            <label className="login-field">
-              <span>Senha</span>
-              <input
-                type="password"
-                placeholder="Digite sua senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-              />
-            </label>
+            <div className="login-field">
+              <label htmlFor="login-password">Senha</label>
+              <div className="login-input-shell login-input-shell--password">
+                <UiIcon name="lock" className="login-input-icon" />
+                <input
+                  id="login-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Digite sua senha"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    clearFeedback();
+                  }}
+                  autoComplete="current-password"
+                  aria-invalid={feedback?.type === "error"}
+                  aria-describedby={
+                    feedback?.type === "error" ? "login-feedback" : undefined
+                  }
+                  disabled={isSubmitting}
+                  required
+                />
+                <button
+                  type="button"
+                  className="login-password-toggle"
+                  onClick={() => setShowPassword((isVisible) => !isVisible)}
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  aria-pressed={showPassword}
+                  title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  <UiIcon name={showPassword ? "eye-off" : "eye"} />
+                </button>
+              </div>
+            </div>
 
-            {(feedback || stateFeedback?.successMessage) && (
+            {feedback && (
               <div
-                style={{
-                  padding: "12px 14px",
-                  borderRadius: "14px",
-                  border: `1px solid ${
-                    feedback?.type === "error"
-                      ? "rgba(248, 113, 113, 0.45)"
-                      : "rgba(74, 222, 128, 0.45)"
-                  }`,
-                  background:
-                    feedback?.type === "error"
-                      ? "rgba(127, 29, 29, 0.22)"
-                      : "rgba(20, 83, 45, 0.22)",
-                  color: feedback?.type === "error" ? "#fecaca" : "#bbf7d0",
-                  lineHeight: 1.5,
-                }}
+                id="login-feedback"
+                className={`login-feedback login-feedback--${feedback.type}`}
+                role={feedback.type === "error" ? "alert" : "status"}
+                aria-live={feedback.type === "error" ? "assertive" : "polite"}
               >
-                {feedback?.message ?? stateFeedback?.successMessage}
+                <UiIcon
+                  name={
+                    feedback.type === "error"
+                      ? "alert-circle"
+                      : "check-circle"
+                  }
+                />
+                <span>{feedback.message}</span>
               </div>
             )}
 
             <button type="submit" className="login-submit" disabled={isSubmitting}>
-              {isSubmitting ? "Entrando..." : "Entrar no sistema"}
+              {isSubmitting && <span className="login-spinner" aria-hidden="true" />}
+              <span>{isSubmitting ? "Entrando..." : "Entrar no sistema"}</span>
             </button>
 
-            <button
-              type="button"
-              className="login-submit"
-              onClick={() => navigate("/register")}
-            >
-              Criar conta
-            </button>
+            <div className="login-register-prompt">
+              <span>Ainda não possui acesso?</span>
+              <Link className="login-secondary-action" to="/register">
+                Criar conta
+              </Link>
+            </div>
           </form>
         </div>
       </section>

@@ -1,33 +1,25 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import type { ReactNode } from "react";
 
 import "./App.css";
+import { getDefaultRoute, getStoredUser, hasAccessToken } from "./auth/session";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import MyTickets from "./pages/MyTickets";
 import NewTicket from "./pages/NewTicket";
+import Profile from "./pages/Profile";
 import Register from "./pages/Register";
+import Settings from "./pages/Settings";
 import TicketDetail from "./pages/TicketDetail";
 import Tickets from "./pages/Tickets";
 
-function PrivateRoute({ children }: { children: ReactNode }) {
-  const token = localStorage.getItem("access_token");
-  return token ? children : <Navigate to="/login" replace />;
-}
+function HomeRedirect() {
+  const user = getStoredUser();
 
-function AnalystRoute({ children }: { children: ReactNode }) {
-  const token = localStorage.getItem("access_token");
-  const rawUser = localStorage.getItem("user");
-  const user = rawUser ? JSON.parse(rawUser) : null;
-
-  if (!token) {
+  if (!hasAccessToken() || !user) {
     return <Navigate to="/login" replace />;
   }
 
-  if (user?.role !== "analyst") {
-    return <Navigate to="/my-tickets" replace />;
-  }
-
-  return <>{children}</>;
+  return <Navigate to={getDefaultRoute(user.role)} replace />;
 }
 
 function App() {
@@ -38,36 +30,60 @@ function App() {
       <Route
         path="/tickets"
         element={
-          <AnalystRoute>
+          <ProtectedRoute allowedRoles={["analyst"]}>
             <Tickets />
-          </AnalystRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["analyst"]}>
+            <Tickets />
+          </ProtectedRoute>
         }
       />
       <Route
         path="/tickets/:id"
         element={
-          <AnalystRoute>
+          <ProtectedRoute allowedRoles={["analyst"]}>
             <TicketDetail />
-          </AnalystRoute>
+          </ProtectedRoute>
         }
       />
       <Route
         path="/my-tickets"
         element={
-          <PrivateRoute>
+          <ProtectedRoute allowedRoles={["client"]}>
             <MyTickets />
-          </PrivateRoute>
+          </ProtectedRoute>
         }
       />
       <Route
         path="/new-ticket"
         element={
-          <PrivateRoute>
+          <ProtectedRoute allowedRoles={["client"]}>
             <NewTicket />
-          </PrivateRoute>
+          </ProtectedRoute>
         }
       />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<HomeRedirect />} />
     </Routes>
   );
 }
